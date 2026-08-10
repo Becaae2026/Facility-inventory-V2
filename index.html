@@ -463,8 +463,11 @@ function fillDropdowns(){
     const v=sel.value; sel.innerHTML=itemOptions(); sel.value=v;
   });
   $('inVendor').innerHTML='<option value="">Select vendor…</option>'+D.vendors.map(v=>`<option>${esc(v.name)}</option>`).join('');
+  const brOpt=b=>`<option value="${esc(b.code)}">${b.code===b.name?esc(b.name):esc(b.code)+' — '+esc(b.name)}</option>`;
+  const brs=D.branches.filter(b=>b.type!=='Department'), deps=D.branches.filter(b=>b.type==='Department');
   $('outBranch').innerHTML='<option value="">Select branch / department…</option>'+
-    D.branches.map(b=>`<option value="${esc(b.code)}">${esc(b.code)} — ${esc(b.name)}</option>`).join('');
+    '<optgroup label="Branches">'+brs.map(brOpt).join('')+'</optgroup>'+
+    (deps.length?'<optgroup label="Departments">'+deps.map(brOpt).join('')+'</optgroup>':'');
   const cats=[...new Set(D.items.map(i=>i.category))].sort();
   $('balCat').innerHTML='<option value="">All</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
   repControls();
@@ -586,7 +589,7 @@ function repControls(){
   $('repFilterLbl').textContent=typ==='received'?'Vendor':typ==='issued'?'Branch':'Category';
   let opts='<option value="">All</option>';
   if(typ==='received')opts+=D.vendors.map(v=>`<option>${esc(v.name)}</option>`).join('');
-  else if(typ==='issued')opts+=D.branches.map(b=>`<option value="${esc(b.code)}">${esc(b.code)} — ${esc(b.name)}</option>`).join('');
+  else if(typ==='issued')opts+=D.branches.map(b=>`<option value="${esc(b.code)}">${b.code===b.name?esc(b.name):esc(b.code)+' — '+esc(b.name)}</option>`).join('');
   else opts+=[...new Set(D.items.map(i=>i.category))].sort().map(c=>`<option>${esc(c)}</option>`).join('');
   $('repFilter').innerHTML=opts;
 }
