@@ -41,6 +41,8 @@ nav button.on{color:#fff;border-bottom-color:var(--sky)}
 .kpi b{display:block;font-size:20px;font-weight:700;color:var(--navy)}
 .kpi span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .kpi.alert b{color:var(--bad)}
+.kpi[onclick]{cursor:pointer;transition:box-shadow .15s,transform .15s}
+.kpi[onclick]:hover{box-shadow:0 4px 12px rgba(11,36,71,.20);transform:translateY(-1px)}
 
 /* ---------- layout ---------- */
 main{padding:0 22px 40px;max-width:1500px;margin:0 auto}
@@ -143,13 +145,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 </nav>
 
 <div id="kpis">
-  <div class="kpi"><b id="kSku">–</b><span>Items (SKUs)</span></div>
-  <div class="kpi"><b id="kUnits">–</b><span>Units in stock</span></div>
-  <div class="kpi"><b id="kValue">–</b><span>Stock value (KWD)</span></div>
-  <div class="kpi alert"><b id="kLow">–</b><span>At / below reorder</span></div>
-  <div class="kpi alert"><b id="kNil">–</b><span>Nil stock</span></div>
-  <div class="kpi"><b id="kInM">–</b><span>Received this month</span></div>
-  <div class="kpi"><b id="kOutM">–</b><span>Issued this month</span></div>
+  <div class="kpi" onclick="kpiGo('bal')" title="Open stock balance"><b id="kSku">–</b><span>Items (SKUs)</span></div>
+  <div class="kpi" onclick="kpiGo('bal')" title="Open stock balance"><b id="kUnits">–</b><span>Units in stock</span></div>
+  <div class="kpi" onclick="kpiGo('bal')" title="Open stock balance"><b id="kValue">–</b><span>Stock value (KWD)</span></div>
+  <div class="kpi alert" onclick="kpiGo('low')" title="Show items at / below reorder"><b id="kLow">–</b><span>At / below reorder</span></div>
+  <div class="kpi alert" onclick="kpiGo('nil')" title="Show nil-stock items"><b id="kNil">–</b><span>Nil stock</span></div>
+  <div class="kpi" onclick="kpiGo('inM')" title="Open this month's receipts report"><b id="kInM">–</b><span>Received this month</span></div>
+  <div class="kpi" onclick="kpiGo('outM')" title="Open this month's issues report"><b id="kOutM">–</b><span>Issued this month</span></div>
 </div>
 
 <main>
@@ -278,7 +280,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <!-- ============================ SETTINGS ============================ -->
 <section id="set">
-  <div class="card">
+  <div class="card" id="connCard" style="display:none">
     <h2>Connection</h2>
     <p style="margin-bottom:10px">Web App URL is read from <b>config.js</b> (kept separate so dashboard updates never wipe it).</p>
     <div class="row c2">
@@ -801,6 +803,7 @@ function applyRole(){
   const admin=AUTH&&AUTH.role==='admin';
   $('adjCard').style.display=admin?'':'none';
   $('usersCard').style.display=admin?'':'none';
+  $('connCard').style.display=admin?'':'none';
   mdItemPick(); mdVenPick(); mdBrPick();
   if(admin)loadUsers();
 }
@@ -957,6 +960,25 @@ async function deleteBranchUI(){
   $('mdBrDel').disabled=true;
   try{ await apiPost('deleteBranch',{name}); toast('Deleted'); $('mdBrSel').value=''; await loadData(); }
   catch(e){ toast(e.message,true); } finally{ $('mdBrDel').disabled=false; }
+}
+
+/* ------------------------------ KPI drill-down ----------------------------- */
+function kpiGo(kind){
+  if(kind==='bal'||kind==='low'||kind==='nil'){
+    go('bal');
+    $('balSearch').value='';$('balCat').value='';
+    $('balStat').value=kind==='low'?'LOW':kind==='nil'?'NIL':'';
+    renderBalance();
+    return;
+  }
+  // inM / outM -> this month's report with export & print
+  go('rep');
+  $('repType').value=kind==='inM'?'received':'issued';
+  $('repPeriod').value='month';
+  repControls();
+  $('repMonth').value=monthKey(today());
+  $('repFilter').value='';
+  runReport();
 }
 
 /* --------------------------------- reports -------------------------------- */
