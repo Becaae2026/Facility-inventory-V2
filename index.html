@@ -23,7 +23,7 @@ label{font-size:11.5px;font-weight:600;color:var(--mut);text-transform:uppercase
 /* ---------- header + nav ---------- */
 header{background:var(--navy);color:#fff;display:flex;align-items:center;gap:14px;padding:10px 22px}
 .logos{display:flex;align-items:center;gap:10px}
-header .lg-bec{height:40px;background:#fff;padding:3px 6px;border-radius:6px}
+header .lg-bec{height:34px}
 header .lg-aae{height:32px}
 header .t h1{font-size:17px;font-weight:700;letter-spacing:.3px}
 header .t p{font-size:11.5px;color:var(--sky)}
@@ -95,8 +95,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   .card{border:none;box-shadow:none;padding:0}
   .scroll{max-height:none;overflow:visible;border:none}
   #printhead{display:flex!important;align-items:center;gap:12px;border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:14px}
-  #printhead .lg-bec{height:44px}
-  #printhead .lg-aae{height:34px;background:var(--navy);padding:5px 9px;border-radius:6px}
+  #printhead .lg-bec,#printhead .lg-aae{height:34px;background:var(--navy);padding:5px 9px;border-radius:6px}
   #printhead h1{font-size:16px;color:var(--navy)}
   #printhead p{font-size:11px;color:#555}
 }
@@ -459,6 +458,10 @@ function renderBalance(){
 }
 
 function fillDropdowns(){
+  // Refresh item selects on already-added line rows (they may have been created before data arrived)
+  document.querySelectorAll('.lnItem').forEach(sel=>{
+    const v=sel.value; sel.innerHTML=itemOptions(); sel.value=v;
+  });
   $('inVendor').innerHTML='<option value="">Select vendor…</option>'+D.vendors.map(v=>`<option>${esc(v.name)}</option>`).join('');
   $('outBranch').innerHTML='<option value="">Select branch / department…</option>'+
     D.branches.map(b=>`<option value="${esc(b.code)}">${esc(b.code)} — ${esc(b.name)}</option>`).join('');
