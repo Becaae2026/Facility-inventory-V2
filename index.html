@@ -291,7 +291,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       here on the next refresh; changes made here are written straight into the Sheet.</p>
   </div>
   <div class="card">
-    <h2>Add new item</h2>
+    <h2>Items — add / edit</h2>
+    <div class="row c2">
+      <div><label>Select item (or add new)</label><select id="mdItemSel" onchange="mdItemPick()"></select></div>
+    </div>
     <div class="row c4">
       <div><label>Item name</label><input id="mdItemName" placeholder="e.g. STAPLER LARGE"></div>
       <div><label>Category</label><select id="mdItemCat"></select></div>
@@ -302,29 +305,47 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div><label>Opening qty</label><input type="number" id="mdItemOpen" min="0" step="any" value="0"></div>
       <div><label>Reorder level</label><input type="number" id="mdItemReorder" min="0" step="any" value="0"></div>
       <div><label>Std cost (KWD)</label><input type="number" id="mdItemCost" min="0" step="any" value="0"></div>
-      <div style="display:flex;align-items:end"><button class="btn" id="mdItemBtn" onclick="addItemUI()">Add item</button></div>
+      <div style="display:flex;align-items:end;gap:8px">
+        <button class="btn" id="mdItemBtn" onclick="addItemUI()">Add item</button>
+        <button class="btn" id="mdItemUpd" style="display:none" onclick="editItemUI()">Update</button>
+        <button class="btn danger" id="mdItemDel" style="display:none" onclick="deleteItemUI()">Delete</button>
+      </div>
     </div>
-    <p class="note">The item code (next FAC-…) is assigned automatically and the row is written to the Item Master tab.</p>
+    <p class="note" id="mdItemNote">The item code (next FAC-…) is assigned automatically and the row is written to the Item Master tab.</p>
   </div>
   <div class="card">
-    <h2>Add new vendor</h2>
+    <h2>Vendors — add / edit</h2>
+    <div class="row c2">
+      <div><label>Select vendor (or add new)</label><select id="mdVenSel" onchange="mdVenPick()"></select></div>
+    </div>
     <div class="row c4">
       <div><label>Vendor name</label><input id="mdVenName"></div>
       <div><label>Contact person</label><input id="mdVenContact" placeholder="Optional"></div>
       <div><label>Phone</label><input id="mdVenPhone" placeholder="Optional"></div>
-      <div style="display:flex;align-items:end"><button class="btn" id="mdVenBtn" onclick="addVendorUI()">Add vendor</button></div>
+      <div style="display:flex;align-items:end;gap:8px">
+        <button class="btn" id="mdVenBtn" onclick="addVendorUI()">Add vendor</button>
+        <button class="btn" id="mdVenUpd" style="display:none" onclick="editVendorUI()">Update</button>
+        <button class="btn danger" id="mdVenDel" style="display:none" onclick="deleteVendorUI()">Delete</button>
+      </div>
     </div>
   </div>
   <div class="card">
-    <h2>Add new branch / department</h2>
+    <h2>Branches / departments — add / edit</h2>
+    <div class="row c2">
+      <div><label>Select branch / department (or add new)</label><select id="mdBrSel" onchange="mdBrPick()"></select></div>
+    </div>
     <div class="row c4">
       <div><label>Type</label><select id="mdBrType" onchange="$('mdBrCode').disabled=this.value==='Department';if(this.value==='Department')$('mdBrCode').value=''">
         <option>Branch</option><option>Department</option></select></div>
       <div><label>Branch code</label><input id="mdBrCode" placeholder="e.g. SA7" style="text-transform:uppercase"></div>
       <div><label>Name</label><input id="mdBrName" placeholder="e.g. Salmiya-7"></div>
-      <div style="display:flex;align-items:end"><button class="btn" id="mdBrBtn" onclick="addBranchUI()">Add</button></div>
+      <div style="display:flex;align-items:end;gap:8px">
+        <button class="btn" id="mdBrBtn" onclick="addBranchUI()">Add</button>
+        <button class="btn" id="mdBrUpd" style="display:none" onclick="editBranchUI()">Update</button>
+        <button class="btn danger" id="mdBrDel" style="display:none" onclick="deleteBranchUI()">Delete</button>
+      </div>
     </div>
-    <p class="note">Departments are saved without a code, same as the existing ones in the Branches tab.</p>
+    <p class="note">Departments are saved without a code, same as the existing ones in the Branches tab. Deleting is admin-only; past transactions always keep their names.</p>
   </div>
   <div class="card" id="adjCard" style="display:none">
     <h2>Stock adjustment (admin only)</h2>
@@ -342,6 +363,18 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     </div>
     <p class="note" id="adjInfoLine">Select an item to see its current balances.</p>
     <p class="note">Add / Remove creates an ADJ-… entry in Stock IN / Stock OUT (never deleted, voidable like any document). Set opening rewrites the Opening qty in Item Master. Every adjustment is written to the Audit Log with your username and reason.</p>
+  </div>
+  <div class="card" id="usersCard" style="display:none">
+    <h2>Users (admin only)</h2>
+    <div class="scroll" style="max-height:220px"><table id="tUsers">
+      <thead><tr><th>Username</th><th>Role</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row c4" style="margin-top:12px">
+      <div><label>Username</label><input id="usrName" placeholder="3–20 letters / numbers"></div>
+      <div><label>Password</label><input id="usrPass" placeholder="Min 6 characters"></div>
+      <div><label>Role</label><select id="usrRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="usrBtn" onclick="addUserUI()">Add user</button></div>
+    </div>
+    <p class="note">Changes apply immediately — a removed user is blocked on their very next action. You cannot remove yourself or the last admin. Every add/remove is written to the Audit Log.</p>
   </div>
   <div class="card">
     <h2>Data protection</h2>
@@ -597,6 +630,11 @@ function fillDropdowns(){
   const allUnits=[...new Set([...(D.units||[]),...D.items.map(i=>i.unit)])].filter(Boolean).sort();
   $('mdItemUnit').innerHTML=allUnits.map(u=>`<option>${esc(u)}</option>`).join('');
   const adjSel=$('adjItem'), adjV=adjSel.value; adjSel.innerHTML=itemOptions(); adjSel.value=adjV; adjInfo();
+  const keep=(id,html)=>{const s=$(id),v=s.value;s.innerHTML=html;s.value=v;};
+  keep('mdItemSel','<option value="">— Add new item —</option>'+D.items.map(it=>`<option value="${esc(it.code)}">${esc(it.code)} — ${esc(it.name)}</option>`).join(''));
+  keep('mdVenSel','<option value="">— Add new vendor —</option>'+D.vendors.map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join(''));
+  keep('mdBrSel','<option value="">— Add new —</option>'+D.branches.map(b=>`<option value="${esc(b.name)}">${b.code&&b.code!==b.name?esc(b.code)+' — ':''}${esc(b.name)}</option>`).join(''));
+  mdItemPick(); mdVenPick(); mdBrPick();
   repControls();
   // years for reports
   const yrs=new Set();
@@ -750,7 +788,40 @@ async function addBranchUI(){
 }
 
 /* ---------------------------- stock adjustment ---------------------------- */
-function applyRole(){ $('adjCard').style.display=(AUTH&&AUTH.role==='admin')?'':'none'; }
+function applyRole(){
+  const admin=AUTH&&AUTH.role==='admin';
+  $('adjCard').style.display=admin?'':'none';
+  $('usersCard').style.display=admin?'':'none';
+  mdItemPick(); mdVenPick(); mdBrPick();
+  if(admin)loadUsers();
+}
+
+/* ------------------------------ user management ---------------------------- */
+async function loadUsers(){
+  try{
+    const list=await apiPost('listUsers',{});
+    $('tUsers').tBodies[0].innerHTML=list.map(u=>`<tr><td>${esc(u.user)}</td>
+      <td><span class="pill ${u.role==='admin'?'low':'ok'}">${esc(u.role)}</span></td>
+      <td>${u.user===AUTH.user?'<span class="note">you</span>':`<button class="btn danger sm" onclick="removeUserUI('${esc(u.user)}')">Remove</button>`}</td></tr>`).join('');
+  }catch(e){ $('tUsers').tBodies[0].innerHTML='<tr><td colspan="3">'+esc(e.message)+'</td></tr>'; }
+}
+async function addUserUI(){
+  const p={username:$('usrName').value.trim(),password:$('usrPass').value,role:$('usrRole').value};
+  if(!p.username||!p.password)return toast('Username and password are required.',true);
+  $('usrBtn').disabled=true;
+  try{
+    await apiPost('addUser',p);
+    toast('User "'+p.username+'" added ('+p.role+')');
+    $('usrName').value='';$('usrPass').value='';$('usrRole').value='user';
+    loadUsers();
+  }catch(e){ toast(e.message,true); }
+  finally{ $('usrBtn').disabled=false; }
+}
+async function removeUserUI(u){
+  if(!confirm('Remove user "'+u+'"? They will lose access immediately.'))return;
+  try{ await apiPost('removeUser',{username:u}); toast('User "'+u+'" removed'); loadUsers(); }
+  catch(e){ toast(e.message,true); }
+}
 function adjInfo(){
   const code=$('adjItem').value;
   if(!code){ $('adjInfoLine').textContent='Select an item to see its current balances.'; return; }
@@ -772,6 +843,91 @@ async function adjustUI(){
     await loadData();
   }catch(e){ toast(e.message,true); }
   finally{ $('adjBtn').disabled=false; }
+}
+
+/* ------------------------- master data edit/delete ------------------------- */
+function mdMode(sel,addBtn,updBtn,delBtn){
+  const editing=!!$(sel).value;
+  $(addBtn).style.display=editing?'none':'';
+  $(updBtn).style.display=editing?'':'none';
+  $(delBtn).style.display=(editing&&AUTH&&AUTH.role==='admin')?'':'none';
+  return editing;
+}
+function mdItemPick(){
+  const editing=mdMode('mdItemSel','mdItemBtn','mdItemUpd','mdItemDel');
+  const it=D.items.find(x=>x.code===$('mdItemSel').value);
+  if(editing&&it){
+    $('mdItemName').value=it.name;$('mdItemCat').value=it.category;$('mdItemUnit').value=it.unit;
+    $('mdItemLoc').value=it.location;$('mdItemOpen').value=it.opening;$('mdItemReorder').value=it.reorder;$('mdItemCost').value=it.cost;
+    $('mdItemOpen').disabled=true;
+    $('mdItemNote').textContent='Editing '+it.code+'. Opening qty is locked here — change it via Stock adjustment (admin) so it stays audited.';
+  }else{
+    $('mdItemName').value='';$('mdItemLoc').value='';$('mdItemOpen').value=0;$('mdItemReorder').value=0;$('mdItemCost').value=0;
+    $('mdItemOpen').disabled=false;
+    $('mdItemNote').textContent='The item code (next FAC-…) is assigned automatically and the row is written to the Item Master tab.';
+  }
+}
+async function editItemUI(){
+  const p={code:$('mdItemSel').value,name:$('mdItemName').value.trim(),category:$('mdItemCat').value,
+    unit:$('mdItemUnit').value,location:$('mdItemLoc').value.trim(),
+    reorder:+$('mdItemReorder').value||0,cost:+$('mdItemCost').value||0};
+  if(!p.name)return toast('Item name is required.',true);
+  $('mdItemUpd').disabled=true;
+  try{ await apiPost('editItem',p); toast(p.code+' updated — written to Item Master'); await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdItemUpd').disabled=false; }
+}
+async function deleteItemUI(){
+  const code=$('mdItemSel').value, it=D.items.find(x=>x.code===code);
+  if(!confirm('Delete '+code+' — '+(it?it.name:'')+' from Item Master?'))return;
+  $('mdItemDel').disabled=true;
+  try{ await apiPost('deleteItem',{code}); toast(code+' deleted'); $('mdItemSel').value=''; await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdItemDel').disabled=false; }
+}
+function mdVenPick(){
+  const editing=mdMode('mdVenSel','mdVenBtn','mdVenUpd','mdVenDel');
+  const v=D.vendors.find(x=>x.name===$('mdVenSel').value);
+  if(editing&&v){ $('mdVenName').value=v.name;$('mdVenContact').value=v.contact;$('mdVenPhone').value=v.phone; }
+  else{ $('mdVenName').value='';$('mdVenContact').value='';$('mdVenPhone').value=''; }
+}
+async function editVendorUI(){
+  const p={orig:$('mdVenSel').value,name:$('mdVenName').value.trim(),
+    contact:$('mdVenContact').value.trim(),phone:$('mdVenPhone').value.trim()};
+  if(!p.name)return toast('Vendor name is required.',true);
+  $('mdVenUpd').disabled=true;
+  try{ await apiPost('editVendor',p); toast('Vendor updated — written to Vendors tab'); $('mdVenSel').value=''; await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdVenUpd').disabled=false; }
+}
+async function deleteVendorUI(){
+  const name=$('mdVenSel').value;
+  if(!confirm('Delete vendor "'+name+'"? Past receipts keep the name.'))return;
+  $('mdVenDel').disabled=true;
+  try{ await apiPost('deleteVendor',{name}); toast('Vendor deleted'); $('mdVenSel').value=''; await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdVenDel').disabled=false; }
+}
+function mdBrPick(){
+  const editing=mdMode('mdBrSel','mdBrBtn','mdBrUpd','mdBrDel');
+  const b=D.branches.find(x=>x.name===$('mdBrSel').value);
+  if(editing&&b){
+    $('mdBrType').value=b.type==='Department'?'Department':'Branch';
+    $('mdBrCode').value=b.code===b.name?'':b.code; $('mdBrName').value=b.name;
+  }else{ $('mdBrCode').value='';$('mdBrName').value=''; }
+  $('mdBrCode').disabled=$('mdBrType').value==='Department';
+}
+async function editBranchUI(){
+  const p={origName:$('mdBrSel').value,type:$('mdBrType').value,
+    code:$('mdBrCode').value.trim().toUpperCase(),name:$('mdBrName').value.trim()};
+  if(!p.name)return toast('Name is required.',true);
+  if(p.type==='Branch'&&!p.code)return toast('Branch code is required.',true);
+  $('mdBrUpd').disabled=true;
+  try{ await apiPost('editBranch',p); toast('Updated — written to Branches tab'); $('mdBrSel').value=''; await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdBrUpd').disabled=false; }
+}
+async function deleteBranchUI(){
+  const name=$('mdBrSel').value;
+  if(!confirm('Delete "'+name+'"? Past issues keep the name.'))return;
+  $('mdBrDel').disabled=true;
+  try{ await apiPost('deleteBranch',{name}); toast('Deleted'); $('mdBrSel').value=''; await loadData(); }
+  catch(e){ toast(e.message,true); } finally{ $('mdBrDel').disabled=false; }
 }
 
 /* --------------------------------- reports -------------------------------- */
