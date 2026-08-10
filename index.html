@@ -306,6 +306,15 @@ const fmt = n => (Math.round(n*1000)/1000).toLocaleString('en-US',{maximumFracti
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today = () => new Date().toISOString().slice(0,10);
 const monthKey = d => String(d||'').slice(0,7);
+function normDate(s){
+  s=String(s||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);          // ISO already
+  let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);   // dd/mm/yyyy
+  if(m) return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);
+  const d=new Date(s);                                              // anything JS can parse
+  if(!isNaN(d)) return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+  return s;
+}
 
 /* ------------------------------- navigation ------------------------------- */
 function go(s){
@@ -351,6 +360,8 @@ async function loadData(manual){
   try{
     const d = await apiGet('getData');
     Object.assign(D,d);
+    D.stockIn.forEach(t=>t.date=normDate(t.date));
+    D.stockOut.forEach(t=>t.date=normDate(t.date));
     computeBalances(); renderAll();
     setConn(true,'Synced '+new Date().toLocaleTimeString());
     if(manual) toast('Data refreshed from Google Sheet');
