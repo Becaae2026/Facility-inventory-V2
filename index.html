@@ -22,7 +22,9 @@ label{font-size:11.5px;font-weight:600;color:var(--mut);text-transform:uppercase
 
 /* ---------- header + nav ---------- */
 header{background:var(--navy);color:#fff;display:flex;align-items:center;gap:14px;padding:10px 22px}
-header img{height:40px;border-radius:6px;background:#fff;padding:3px}
+.logos{display:flex;align-items:center;gap:10px}
+header .lg-bec{height:40px;background:#fff;padding:3px 6px;border-radius:6px}
+header .lg-aae{height:32px}
 header .t h1{font-size:17px;font-weight:700;letter-spacing:.3px}
 header .t p{font-size:11.5px;color:var(--sky)}
 header .conn{margin-left:auto;font-size:11.5px;display:flex;align-items:center;gap:7px}
@@ -93,7 +95,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   .card{border:none;box-shadow:none;padding:0}
   .scroll{max-height:none;overflow:visible;border:none}
   #printhead{display:flex!important;align-items:center;gap:12px;border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:14px}
-  #printhead img{height:46px}
+  #printhead .lg-bec{height:44px}
+  #printhead .lg-aae{height:34px;background:var(--navy);padding:5px 9px;border-radius:6px}
   #printhead h1{font-size:16px;color:var(--navy)}
   #printhead p{font-size:11px;color:#555}
 }
@@ -102,12 +105,16 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <body>
 
 <div id="printhead">
-  <img src="BECAAE_LOGO.jpg" alt="" onerror="this.style.display='none'">
+  <img src="BEC_logo.png" class="lg-bec" alt="" onerror="this.style.display='none'">
+  <img src="al-ansari-logo-white-100px.png" class="lg-aae" alt="" onerror="this.style.display='none'">
   <div><h1>BEC / Al Ansari Exchange — Facility Department</h1><p id="printsub"></p></div>
 </div>
 
 <header>
-  <img src="BECAAE_LOGO.jpg" alt="Logo" onerror="this.style.display='none'">
+  <div class="logos">
+    <img src="BEC_logo.png" class="lg-bec" alt="BEC" onerror="this.style.display='none'">
+    <img src="al-ansari-logo-white-100px.png" class="lg-aae" alt="Al Ansari Exchange" onerror="this.style.display='none'">
+  </div>
   <div class="t">
     <h1>Facility Inventory</h1>
     <p>BEC / Al Ansari Exchange — Facility Department Store</p>
