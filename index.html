@@ -281,6 +281,42 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       here on the next refresh; changes made here are written straight into the Sheet.</p>
   </div>
   <div class="card">
+    <h2>Add new item</h2>
+    <div class="row c4">
+      <div><label>Item name</label><input id="mdItemName" placeholder="e.g. STAPLER LARGE"></div>
+      <div><label>Category</label><select id="mdItemCat"></select></div>
+      <div><label>Unit</label><select id="mdItemUnit"></select></div>
+      <div><label>Store location</label><input id="mdItemLoc" placeholder="Optional"></div>
+    </div>
+    <div class="row c4">
+      <div><label>Opening qty</label><input type="number" id="mdItemOpen" min="0" step="any" value="0"></div>
+      <div><label>Reorder level</label><input type="number" id="mdItemReorder" min="0" step="any" value="0"></div>
+      <div><label>Std cost (KWD)</label><input type="number" id="mdItemCost" min="0" step="any" value="0"></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="mdItemBtn" onclick="addItemUI()">Add item</button></div>
+    </div>
+    <p class="note">The item code (next FAC-…) is assigned automatically and the row is written to the Item Master tab.</p>
+  </div>
+  <div class="card">
+    <h2>Add new vendor</h2>
+    <div class="row c4">
+      <div><label>Vendor name</label><input id="mdVenName"></div>
+      <div><label>Contact person</label><input id="mdVenContact" placeholder="Optional"></div>
+      <div><label>Phone</label><input id="mdVenPhone" placeholder="Optional"></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="mdVenBtn" onclick="addVendorUI()">Add vendor</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Add new branch / department</h2>
+    <div class="row c4">
+      <div><label>Type</label><select id="mdBrType" onchange="$('mdBrCode').disabled=this.value==='Department';if(this.value==='Department')$('mdBrCode').value=''">
+        <option>Branch</option><option>Department</option></select></div>
+      <div><label>Branch code</label><input id="mdBrCode" placeholder="e.g. SA7" style="text-transform:uppercase"></div>
+      <div><label>Name</label><input id="mdBrName" placeholder="e.g. Salmiya-7"></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="mdBrBtn" onclick="addBranchUI()">Add</button></div>
+    </div>
+    <p class="note">Departments are saved without a code, same as the existing ones in the Branches tab.</p>
+  </div>
+  <div class="card">
     <h2>Data protection</h2>
     <p>Transactions are never deleted — cancelling sets the status to <span class="pill void">VOID</span> and the row stays in the Sheet.
     Every action is written to the <b>Audit Log</b> tab. A daily copy of the workbook is saved to the Drive folder
@@ -484,6 +520,10 @@ function fillDropdowns(){
     (deps.length?'<optgroup label="Departments">'+deps.map(brOpt).join('')+'</optgroup>':'');
   const cats=[...new Set(D.items.map(i=>i.category))].sort();
   $('balCat').innerHTML='<option value="">All</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+  const allCats=[...new Set([...(D.categories||[]),...cats])].filter(Boolean).sort();
+  $('mdItemCat').innerHTML=allCats.map(c=>`<option>${esc(c)}</option>`).join('');
+  const allUnits=[...new Set([...(D.units||[]),...D.items.map(i=>i.unit)])].filter(Boolean).sort();
+  $('mdItemUnit').innerHTML=allUnits.map(u=>`<option>${esc(u)}</option>`).join('');
   repControls();
   // years for reports
   const yrs=new Set();
@@ -594,6 +634,47 @@ function resetIn(){ $('inDate').value=today();$('inVendor').value='';$('inInvoic
   $('inLines').tBodies[0].innerHTML='';addLine('in');inTotals(); }
 function resetOut(){ $('outDate').value=today();$('outBranch').value='';$('outIssuedTo').value='';$('outReqBy').value='';
   $('outRemarks').value='';$('outLines').tBodies[0].innerHTML='';addLine('out'); }
+
+/* ------------------------------ master data ------------------------------- */
+async function addItemUI(){
+  const p={name:$('mdItemName').value.trim(),category:$('mdItemCat').value,unit:$('mdItemUnit').value,
+    location:$('mdItemLoc').value.trim(),opening:+$('mdItemOpen').value||0,
+    reorder:+$('mdItemReorder').value||0,cost:+$('mdItemCost').value||0};
+  if(!p.name)return toast('Item name is required.',true);
+  $('mdItemBtn').disabled=true;
+  try{
+    const r=await apiPost('addItem',p);
+    toast('Item added as '+r.code+' — written to Item Master');
+    $('mdItemName').value='';$('mdItemLoc').value='';$('mdItemOpen').value=0;$('mdItemReorder').value=0;$('mdItemCost').value=0;
+    await loadData();
+  }catch(e){ toast(e.message,true); }
+  finally{ $('mdItemBtn').disabled=false; }
+}
+async function addVendorUI(){
+  const p={name:$('mdVenName').value.trim(),contact:$('mdVenContact').value.trim(),phone:$('mdVenPhone').value.trim()};
+  if(!p.name)return toast('Vendor name is required.',true);
+  $('mdVenBtn').disabled=true;
+  try{
+    await apiPost('addVendor',p);
+    toast('Vendor "'+p.name+'" added — written to Vendors tab');
+    $('mdVenName').value='';$('mdVenContact').value='';$('mdVenPhone').value='';
+    await loadData();
+  }catch(e){ toast(e.message,true); }
+  finally{ $('mdVenBtn').disabled=false; }
+}
+async function addBranchUI(){
+  const p={type:$('mdBrType').value,code:$('mdBrCode').value.trim().toUpperCase(),name:$('mdBrName').value.trim()};
+  if(!p.name)return toast('Name is required.',true);
+  if(p.type==='Branch'&&!p.code)return toast('Branch code is required.',true);
+  $('mdBrBtn').disabled=true;
+  try{
+    await apiPost('addBranch',p);
+    toast(p.type+' "'+p.name+'" added — written to Branches tab');
+    $('mdBrCode').value='';$('mdBrName').value='';
+    await loadData();
+  }catch(e){ toast(e.message,true); }
+  finally{ $('mdBrBtn').disabled=false; }
+}
 
 /* --------------------------------- reports -------------------------------- */
 function repControls(){
