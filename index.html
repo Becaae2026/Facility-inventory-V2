@@ -77,6 +77,15 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .lines th{position:static}
 .toast{position:fixed;bottom:22px;right:22px;background:var(--navy);color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);font-size:13px;z-index:99;max-width:420px;display:none}
 .toast.err{background:var(--bad)}
+#loginOverlay{position:fixed;inset:0;background:linear-gradient(160deg,var(--navy),var(--navy2));display:none;align-items:center;justify-content:center;z-index:100}
+#loginOverlay.show{display:flex}
+.loginBox{background:#fff;border-radius:14px;padding:30px 34px;width:340px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.loginBox .logos{justify-content:center;margin-bottom:14px}
+.loginBox .logos img{height:36px}
+.loginBox h1{font-size:16px;color:var(--navy);text-align:center;margin-bottom:2px}
+.loginBox p{font-size:12px;color:var(--mut);text-align:center;margin-bottom:16px}
+.loginBox .fld{margin-bottom:12px}
+.loginErr{color:var(--bad);font-size:12px;min-height:16px;margin-bottom:8px;text-align:center}
 #loading{position:fixed;inset:0;background:rgba(242,246,250,.75);display:none;align-items:center;justify-content:center;z-index:98;font-weight:600;color:var(--navy)}
 .note{font-size:12px;color:var(--mut);margin-top:8px}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
@@ -120,6 +129,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   </div>
   <div class="conn"><span class="dot" id="dot"></span><span id="connText">Connecting…</span>
     <button class="btn sm ghost" onclick="loadData(true)" style="margin-left:8px">⟳ Refresh</button>
+    <button class="btn sm ghost" onclick="logout()" title="Sign out">⎋ <span id="whoami"></span></button>
   </div>
 </header>
 
@@ -316,6 +326,23 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     </div>
     <p class="note">Departments are saved without a code, same as the existing ones in the Branches tab.</p>
   </div>
+  <div class="card" id="adjCard" style="display:none">
+    <h2>Stock adjustment (admin only)</h2>
+    <div class="row c4">
+      <div style="grid-column:span 2"><label>Item</label><select id="adjItem" onchange="adjInfo()"></select></div>
+      <div><label>Action</label><select id="adjMode" onchange="adjInfo()">
+        <option value="add">Add stock (+)</option>
+        <option value="remove">Remove stock (−)</option>
+        <option value="opening">Set opening balance</option></select></div>
+      <div><label>Quantity</label><input type="number" id="adjQty" min="0" step="any"></div>
+    </div>
+    <div class="row c2">
+      <div><label>Reason (required — goes to Audit Log)</label><input id="adjReason" placeholder="e.g. Physical count correction, damaged stock…"></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="adjBtn" onclick="adjustUI()">Apply adjustment</button></div>
+    </div>
+    <p class="note" id="adjInfoLine">Select an item to see its current balances.</p>
+    <p class="note">Add / Remove creates an ADJ-… entry in Stock IN / Stock OUT (never deleted, voidable like any document). Set opening rewrites the Opening qty in Item Master. Every adjustment is written to the Audit Log with your username and reason.</p>
+  </div>
   <div class="card">
     <h2>Data protection</h2>
     <p>Transactions are never deleted — cancelling sets the status to <span class="pill void">VOID</span> and the row stays in the Sheet.
@@ -325,6 +352,22 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 </section>
 
 </main>
+
+<div id="loginOverlay">
+  <div class="loginBox">
+    <div class="logos" style="background:var(--navy);border-radius:8px;padding:8px">
+      <img src="BEC_logo.png" alt="" onerror="this.style.display='none'">
+      <img src="al-ansari-logo-white-100px.png" alt="" onerror="this.style.display='none'">
+    </div>
+    <h1>Facility Inventory</h1>
+    <p>Sign in to continue</p>
+    <div class="fld"><label>Username</label><input id="loginUser" autocomplete="username"></div>
+    <div class="fld"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="loginErr" id="loginErr"></div>
+    <button class="btn" style="width:100%" id="loginBtn" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 <div id="loading">Loading data…</div>
@@ -371,22 +414,51 @@ function printSection(id,title){
 
 /* --------------------------------- API ----------------------------------- */
 function apiUrl(){ return (CFG.WEB_APP_URL||'').trim(); }
+let AUTH=null;
+try{ AUTH=JSON.parse(sessionStorage.getItem('facAuth')||'null'); }catch(_){}
+function authFail(){ AUTH=null; sessionStorage.removeItem('facAuth'); showLogin(); }
+function handleAuthErr(msg){ if(String(msg).indexOf('AUTH:')>-1){ authFail(); return true; } return false; }
+
 async function apiGet(action){
-  const r = await fetch(apiUrl()+'?action='+action, {method:'GET'});
+  const q = AUTH ? '&u='+encodeURIComponent(AUTH.user)+'&t='+encodeURIComponent(AUTH.token) : '';
+  const r = await fetch(apiUrl()+'?action='+action+q, {method:'GET'});
   const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'Server error');
+  if(!j.ok){ if(handleAuthErr(j.error)) throw new Error('Please sign in.'); throw new Error(j.error||'Server error'); }
   return j.data;
 }
 async function apiPost(action,payload){
+  const body={action, payload};
+  if(AUTH){ body.u=AUTH.user; body.t=AUTH.token; }
   const r = await fetch(apiUrl(), {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},   // avoids CORS preflight with Apps Script
-    body: JSON.stringify({action, payload, user: CFG.USER_NAME||'Dashboard user'})
+    body: JSON.stringify(body)
   });
   const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'Server error');
+  if(!j.ok){ if(handleAuthErr(j.error)) throw new Error('Please sign in.'); throw new Error(j.error||'Server error'); }
   return j.data;
 }
+
+/* -------------------------------- login ----------------------------------- */
+function showLogin(){ $('loginOverlay').classList.add('show'); setTimeout(()=>$('loginUser').focus(),50); }
+function hideLogin(){ $('loginOverlay').classList.remove('show'); }
+async function doLogin(){
+  const username=$('loginUser').value.trim(), password=$('loginPass').value;
+  if(!username||!password){ $('loginErr').textContent='Enter username and password.'; return; }
+  $('loginBtn').disabled=true; $('loginErr').textContent='';
+  try{
+    const r = await fetch(apiUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'login',username,password})});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||'Login failed');
+    AUTH={user:j.data.user,token:j.data.token,role:j.data.role||'user'};
+    sessionStorage.setItem('facAuth',JSON.stringify(AUTH));
+    $('whoami').textContent=AUTH.user; $('loginPass').value='';
+    hideLogin(); applyRole(); loadData();
+  }catch(e){ $('loginErr').textContent=String(e.message).replace('Error: ',''); }
+  finally{ $('loginBtn').disabled=false; }
+}
+function logout(){ authFail(); toast('Signed out.'); }
 
 async function loadData(manual){
   if(!apiUrl() || apiUrl().indexOf('http')!==0){
@@ -524,6 +596,7 @@ function fillDropdowns(){
   $('mdItemCat').innerHTML=allCats.map(c=>`<option>${esc(c)}</option>`).join('');
   const allUnits=[...new Set([...(D.units||[]),...D.items.map(i=>i.unit)])].filter(Boolean).sort();
   $('mdItemUnit').innerHTML=allUnits.map(u=>`<option>${esc(u)}</option>`).join('');
+  const adjSel=$('adjItem'), adjV=adjSel.value; adjSel.innerHTML=itemOptions(); adjSel.value=adjV; adjInfo();
   repControls();
   // years for reports
   const yrs=new Set();
@@ -676,6 +749,31 @@ async function addBranchUI(){
   finally{ $('mdBrBtn').disabled=false; }
 }
 
+/* ---------------------------- stock adjustment ---------------------------- */
+function applyRole(){ $('adjCard').style.display=(AUTH&&AUTH.role==='admin')?'':'none'; }
+function adjInfo(){
+  const code=$('adjItem').value;
+  if(!code){ $('adjInfoLine').textContent='Select an item to see its current balances.'; return; }
+  const it=D.items.find(x=>x.code===code), b=BAL[code];
+  $('adjInfoLine').textContent=it?`${it.code} — ${it.name}: opening ${fmt(it.opening)}, current balance ${fmt(b?b.balance:0)} ${it.unit}`:'';
+}
+async function adjustUI(){
+  const p={code:$('adjItem').value,mode:$('adjMode').value,qty:+$('adjQty').value,reason:$('adjReason').value.trim()};
+  if(!p.code)return toast('Select an item.',true);
+  if(isNaN(p.qty)||p.qty<0)return toast('Enter a quantity of zero or above.',true);
+  if(p.mode!=='opening'&&!(p.qty>0))return toast('Quantity must be greater than zero.',true);
+  if(p.mode==='remove'&&p.qty>(BAL[p.code]?.balance??0))return toast('Cannot remove more than the current balance ('+fmt(BAL[p.code]?.balance??0)+').',true);
+  if(p.reason.length<3)return toast('A reason is required for every adjustment.',true);
+  $('adjBtn').disabled=true;
+  try{
+    const r=await apiPost('adjustStock',p);
+    toast(p.mode==='opening'?'Opening balance updated — logged in Audit Log':'Adjustment saved as '+r.doc+' — logged in Audit Log');
+    $('adjQty').value='';$('adjReason').value='';
+    await loadData();
+  }catch(e){ toast(e.message,true); }
+  finally{ $('adjBtn').disabled=false; }
+}
+
 /* --------------------------------- reports -------------------------------- */
 function repControls(){
   const per=$('repPeriod').value, typ=$('repType').value;
@@ -764,8 +862,8 @@ function exportBalanceCSV(){
 
 /* ---------------------------------- boot ---------------------------------- */
 resetIn();resetOut();
-loadData();
-if(CFG.AUTO_REFRESH_SECONDS>0)setInterval(()=>loadData(false),CFG.AUTO_REFRESH_SECONDS*1000);
+if(AUTH){ $('whoami').textContent=AUTH.user; applyRole(); loadData(); } else { showLogin(); }
+if(CFG.AUTO_REFRESH_SECONDS>0)setInterval(()=>{ if(AUTH) loadData(false); },CFG.AUTO_REFRESH_SECONDS*1000);
 </script>
 </body>
 </html>
