@@ -12,7 +12,9 @@
  *    and keeps 5 years (1825 days) of copies. Attach a daily time-driven trigger to it.
  */
 
-var SPREADSHEET_ID = '1HhgP1A5qcnc4yD_7ubGpb3gZQlqIE9VHBMhfNtLlVE8';
+// Leave blank when the script lives inside the sheet (Extensions > Apps Script):
+// the bound spreadsheet is used automatically. Only fill this in for a standalone script.
+var SPREADSHEET_ID = '';
 
 var TAB = {
   ITEMS: 'Item Master',
@@ -72,7 +74,12 @@ function json(obj) {
 
 /* ================================= Reads =================================== */
 
-function ss() { return SpreadsheetApp.openById(SPREADSHEET_ID); }
+function ss() {
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;                       // script bound to the sheet
+  if (SPREADSHEET_ID) return SpreadsheetApp.openById(SPREADSHEET_ID);
+  throw new Error('Open this script from inside the Google Sheet (Extensions > Apps Script), or set SPREADSHEET_ID at the top of Code.gs.');
+}
 
 function readRows(sheetName, firstRow, numCols) {
   var sh = ss().getSheetByName(sheetName);
@@ -84,12 +91,16 @@ function readRows(sheetName, firstRow, numCols) {
 
 function fmtDate(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  return v ? String(v) : '';
+  var s = v ? String(v).trim() : '';
+  var m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // dd/mm/yyyy typed as text
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return s;
 }
 
 function getData() {
+  // Only real item rows: codes like FAC-0001. Skips the Total row and any notes.
   var items = readRows(TAB.ITEMS, DATA_ROW.ITEMS, 8)
-    .filter(function (r) { return r[0]; })
+    .filter(function (r) { return /^[A-Za-z]{2,6}-\d+$/.test(String(r[0]).trim()); })
     .map(function (r) {
       return {
         code: String(r[0]), name: String(r[1] || ''), category: String(r[2] || ''),
@@ -120,9 +131,13 @@ function getData() {
       };
     });
 
+  // Departments have no code in column A — use the name as their code.
   var branches = readRows(TAB.BRANCHES, DATA_ROW.BRANCHES, 3)
-    .filter(function (r) { return r[0]; })
-    .map(function (r) { return { code: String(r[0]), name: String(r[1] || ''), type: String(r[2] || '') }; });
+    .filter(function (r) { return r[0] || r[1]; })
+    .map(function (r) {
+      var name = String(r[1] || r[0]);
+      return { code: String(r[0] || name), name: name, type: String(r[2] || '') };
+    });
 
   var vendors = readRows(TAB.VENDORS, DATA_ROW.VENDORS, 4)
     .filter(function (r) { return r[0]; })
@@ -156,6 +171,18 @@ function currentBalances() {
 
 /* ================================ Writes =================================== */
 
+function nextWriteRow(sh, firstRow) {
+  var last = sh.getLastRow();
+  if (last < firstRow) return firstRow;
+  var colA = sh.getRange(firstRow, 1, last - firstRow + 1, 1).getValues();
+  var lastData = firstRow - 1;
+  for (var i = 0; i < colA.length; i++) {
+    var v = String(colA[i][0] || '').trim();
+    if (v && v.toUpperCase() !== 'TOTAL') lastData = firstRow + i;
+  }
+  return lastData + 1;
+}
+
 function nextDocNo(sheetName, prefix) {
   var rows = readRows(sheetName, sheetName === TAB.IN ? DATA_ROW.IN : DATA_ROW.OUT, 1);
   var max = 0;
@@ -187,7 +214,7 @@ function postStockIn(p, user) {
   });
 
   var sh = ss().getSheetByName(TAB.IN);
-  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 12).setValues(rows);
+  sh.getRange(nextWriteRow(sh, DATA_ROW.IN), 1, rows.length, 12).setValues(rows);
   audit(user, 'STOCK IN', doc, rows.length + ' line(s) from ' + p.vendor);
   return { doc: doc, lines: rows.length };
 }
@@ -226,7 +253,7 @@ function postStockOut(p, user) {
   });
 
   var sh = ss().getSheetByName(TAB.OUT);
-  sh.getRange(sh.getLastRow() + 1, 1, rows.length, 12).setValues(rows);
+  sh.getRange(nextWriteRow(sh, DATA_ROW.OUT), 1, rows.length, 12).setValues(rows);
   audit(user, 'STOCK OUT', doc, rows.length + ' line(s) to ' + p.branch);
   return { doc: doc, lines: rows.length };
 }
@@ -274,7 +301,7 @@ function dailyBackup() {
   var folders = DriveApp.getFoldersByName(BACKUP_FOLDER);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER);
 
-  var file = DriveApp.getFileById(SPREADSHEET_ID);
+  var file = DriveApp.getFileById(ss().getId());
   var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   file.makeCopy('Facility Inventory Backup ' + stamp, folder);
 
