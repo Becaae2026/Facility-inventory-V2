@@ -364,6 +364,15 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     <p class="note" id="adjInfoLine">Select an item to see its current balances.</p>
     <p class="note">Add / Remove creates an ADJ-… entry in Stock IN / Stock OUT (never deleted, voidable like any document). Set opening rewrites the Opening qty in Item Master. Every adjustment is written to the Audit Log with your username and reason.</p>
   </div>
+  <div class="card">
+    <h2>My password</h2>
+    <div class="row c4">
+      <div><label>Current password</label><input type="password" id="pwOld" autocomplete="current-password"></div>
+      <div><label>New password</label><input type="password" id="pwNew" placeholder="Min 6 characters" autocomplete="new-password"></div>
+      <div><label>Confirm new password</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="pwBtn" onclick="changePassUI()">Change password</button></div>
+    </div>
+  </div>
   <div class="card" id="usersCard" style="display:none">
     <h2>Users (admin only)</h2>
     <div class="scroll" style="max-height:220px"><table id="tUsers">
@@ -802,7 +811,8 @@ async function loadUsers(){
     const list=await apiPost('listUsers',{});
     $('tUsers').tBodies[0].innerHTML=list.map(u=>`<tr><td>${esc(u.user)}</td>
       <td><span class="pill ${u.role==='admin'?'low':'ok'}">${esc(u.role)}</span></td>
-      <td>${u.user===AUTH.user?'<span class="note">you</span>':`<button class="btn danger sm" onclick="removeUserUI('${esc(u.user)}')">Remove</button>`}</td></tr>`).join('');
+      <td><button class="btn ghost sm" onclick="resetPassUI('${esc(u.user)}')">Reset password</button>
+      ${u.user===AUTH.user?'<span class="note">you</span>':`<button class="btn danger sm" onclick="removeUserUI('${esc(u.user)}')">Remove</button>`}</td></tr>`).join('');
   }catch(e){ $('tUsers').tBodies[0].innerHTML='<tr><td colspan="3">'+esc(e.message)+'</td></tr>'; }
 }
 async function addUserUI(){
@@ -821,6 +831,25 @@ async function removeUserUI(u){
   if(!confirm('Remove user "'+u+'"? They will lose access immediately.'))return;
   try{ await apiPost('removeUser',{username:u}); toast('User "'+u+'" removed'); loadUsers(); }
   catch(e){ toast(e.message,true); }
+}
+async function resetPassUI(u){
+  const pw=prompt('New password for "'+u+'" (min 6 characters):');
+  if(pw===null)return;
+  try{ await apiPost('resetPassword',{username:u,password:pw}); toast('Password reset for "'+u+'"'); }
+  catch(e){ toast(e.message,true); }
+}
+async function changePassUI(){
+  const oldPassword=$('pwOld').value,newPassword=$('pwNew').value;
+  if(!oldPassword||!newPassword)return toast('Enter your current and new password.',true);
+  if(newPassword.length<6)return toast('New password must be at least 6 characters.',true);
+  if(newPassword!==$('pwNew2').value)return toast('New passwords do not match.',true);
+  $('pwBtn').disabled=true;
+  try{
+    await apiPost('changePassword',{oldPassword,newPassword});
+    toast('Password changed. Use it on your next sign-in.');
+    $('pwOld').value='';$('pwNew').value='';$('pwNew2').value='';
+  }catch(e){ toast(e.message,true); }
+  finally{ $('pwBtn').disabled=false; }
 }
 function adjInfo(){
   const code=$('adjItem').value;
