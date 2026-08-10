@@ -249,9 +249,12 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div><label>Period</label><select id="repPeriod" onchange="repControls()">
         <option value="month">Month</option>
         <option value="fy">Financial year (Aug–Jul)</option>
-        <option value="cy">Calendar year</option></select></div>
+        <option value="cy">Calendar year</option>
+        <option value="custom">Date range</option></select></div>
       <div id="repMonthBox"><label>Month</label><input type="month" id="repMonth"></div>
       <div id="repYearBox" style="display:none"><label>Year</label><select id="repYear"></select></div>
+      <div id="repFromBox" style="display:none"><label>From date</label><input type="date" id="repFrom"></div>
+      <div id="repToBox" style="display:none"><label>To date</label><input type="date" id="repTo"></div>
       <div id="repFilterBox"><label id="repFilterLbl">Vendor</label><select id="repFilter"><option value="">All</option></select></div>
       <button class="btn sm" onclick="runReport()">Run report</button>
       <button class="btn ghost sm" onclick="exportReportCSV()">Export CSV</button>
@@ -585,7 +588,10 @@ function resetOut(){ $('outDate').value=today();$('outBranch').value='';$('outIs
 function repControls(){
   const per=$('repPeriod').value, typ=$('repType').value;
   $('repMonthBox').style.display=per==='month'?'':'none';
-  $('repYearBox').style.display=per==='month'?'none':'';
+  $('repYearBox').style.display=(per==='fy'||per==='cy')?'':'none';
+  $('repFromBox').style.display=per==='custom'?'':'none';
+  $('repToBox').style.display=per==='custom'?'':'none';
+  if(per==='custom'&&!$('repFrom').value){$('repFrom').value=monthKey(today())+'-01';$('repTo').value=today();}
   $('repFilterLbl').textContent=typ==='received'?'Vendor':typ==='issued'?'Branch':'Category';
   let opts='<option value="">All</option>';
   if(typ==='received')opts+=D.vendors.map(v=>`<option>${esc(v.name)}</option>`).join('');
@@ -595,6 +601,10 @@ function repControls(){
 }
 function periodRange(){
   const per=$('repPeriod').value;
+  if(per==='custom'){
+    const f=$('repFrom').value,t=$('repTo').value;
+    return {from:f||'0000-01-01',to:t||'9999-12-31',
+      label:(f?new Date(f).toLocaleDateString('en-GB'):'start')+' to '+(t?new Date(t).toLocaleDateString('en-GB'):'today')};}
   if(per==='month'){const m=$('repMonth').value||monthKey(today());
     return {from:m+'-01',to:m+'-31',label:new Date(m+'-01').toLocaleString('en',{month:'long',year:'numeric'})};}
   const y=+$('repYear').value;
