@@ -1,7 +1,7 @@
 /* Facility Inventory — service worker */
-const CACHE = 'fac-inv-v1';
+const CACHE = 'fac-inv-v3';
 const ASSETS = [
-  './', './index.html', './config.js', './chart.umd.js', './manifest.webmanifest',
+  './', './index.html', './config.js', './chart.umd.js', './manifest.json',
   './icon-192.png', './icon-512.png', './BEC_logo.png', './al-ansari-logo-white-100px.png'
 ];
 
