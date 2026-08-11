@@ -97,22 +97,43 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 
 @media(max-width:1100px){#kpis{grid-template-columns:repeat(4,1fr)}.grid3{grid-template-columns:1fr}.c4{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){
-  #kpis{grid-template-columns:repeat(2,1fr);padding:10px 12px;gap:8px}
-  .c2,.c3,.c4{grid-template-columns:1fr}
+  /* swipeable KPI strip instead of a tall grid */
+  #kpis{display:flex;overflow-x:auto;gap:8px;padding:10px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #kpis::-webkit-scrollbar{display:none}
+  .kpi{min-width:128px;flex:0 0 auto}
+  .kpi b{font-size:17px}
+
+  /* compact header: logos+title row, status row below */
   header{padding:8px 12px;gap:8px;flex-wrap:wrap}
-  header .conn{margin-left:auto}
+  header .t h1{font-size:15px}
   header .t p{display:none}
-  nav{padding:0 8px}
-  nav button{padding:10px 11px;font-size:12.5px}
+  header .conn{margin-left:0;width:100%;justify-content:space-between;order:3}
+  .logos{gap:7px}
+  header .lg-bec{height:26px}
+  header .lg-aae{height:24px}
+
+  nav{padding:0 6px}
+  nav button{padding:10px 10px;font-size:12.5px}
   main{padding:0 10px 30px}
   .card{padding:12px}
-  .kpi b{font-size:17px}
+  .card h2{font-size:13.5px}
+  .grid3{gap:12px}
   .chartbox{height:220px}
-  .scroll{overflow:auto}
-  .scroll table{min-width:560px}
-  table.lines{display:block;overflow-x:auto}
-  .tools>div{min-width:130px;flex:1}
-  .btn{padding:9px 14px}
+
+  /* forms stack to one column; 16px inputs stop iOS auto-zoom */
+  .c2,.c3,.c4{grid-template-columns:1fr}
+  input,select,textarea{font-size:16px;padding:9px 10px}
+  .btn{padding:10px 14px}
+  .btn.sm{padding:6px 10px;font-size:12px}
+
+  /* every table scrolls sideways instead of crushing columns */
+  .scroll{overflow:auto;-webkit-overflow-scrolling:touch}
+  .scroll table{min-width:640px}
+  table.lines{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.lines thead,table.lines tbody{display:table;width:100%;min-width:520px}
+  .tools{gap:8px}
+  .tools>div{min-width:100%;flex:1}
+  .tools .btn{width:100%}
 }
 
 @media print{
