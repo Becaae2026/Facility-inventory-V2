@@ -96,7 +96,24 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 #printhead{display:none}
 
 @media(max-width:1100px){#kpis{grid-template-columns:repeat(4,1fr)}.grid3{grid-template-columns:1fr}.c4{grid-template-columns:1fr 1fr}}
-@media(max-width:700px){#kpis{grid-template-columns:repeat(2,1fr)}.c2,.c3,.c4{grid-template-columns:1fr}}
+@media(max-width:700px){
+  #kpis{grid-template-columns:repeat(2,1fr);padding:10px 12px;gap:8px}
+  .c2,.c3,.c4{grid-template-columns:1fr}
+  header{padding:8px 12px;gap:8px;flex-wrap:wrap}
+  header .conn{margin-left:auto}
+  header .t p{display:none}
+  nav{padding:0 8px}
+  nav button{padding:10px 11px;font-size:12.5px}
+  main{padding:0 10px 30px}
+  .card{padding:12px}
+  .kpi b{font-size:17px}
+  .chartbox{height:220px}
+  .scroll{overflow:auto}
+  .scroll table{min-width:560px}
+  table.lines{display:block;overflow-x:auto}
+  .tools>div{min-width:130px;flex:1}
+  .btn{padding:9px 14px}
+}
 
 @media print{
   header,nav,#kpis,.tools,.btn,.toast,#loading{display:none!important}
@@ -159,9 +176,12 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <!-- ============================ DASHBOARD ============================ -->
 <section id="dash" class="on">
   <div class="grid3">
-    <div class="card"><h2>Received vs issued by month</h2><div class="chartbox"><canvas id="chMonthly"></canvas></div></div>
-    <div class="card"><h2>Stock on hand by category</h2><div class="chartbox"><canvas id="chCat"></canvas></div></div>
+    <div class="card"><h2>Fast movers — top 10 issued items</h2><div class="chartbox"><canvas id="chFast"></canvas></div></div>
     <div class="card"><h2>Top 10 branches by consumption</h2><div class="chartbox"><canvas id="chBranch"></canvas></div></div>
+    <div class="card"><h2>Recent activity</h2>
+      <div class="scroll" style="max-height:250px"><table id="tFeed">
+        <thead><tr><th>Doc</th><th>Date</th><th>Type</th><th>Item</th><th class="n">Qty</th><th>To / From</th></tr></thead>
+        <tbody></tbody></table></div></div>
   </div>
   <div class="card">
     <h2>Reorder alerts</h2>
@@ -556,29 +576,36 @@ function renderKPIs(){
 
 function chart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new Chart($(id),cfg); }
 function renderCharts(){
-  // last 12 months, from transactions
-  const keys=[]; const now=new Date();
-  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);keys.push(d.toISOString().slice(0,7));}
-  const inBy={},outBy={};
-  D.stockIn.forEach(t=>{if(t.status==='ACTIVE')inBy[monthKey(t.date)]=(inBy[monthKey(t.date)]||0)+t.qty;});
-  D.stockOut.forEach(t=>{if(t.status==='ACTIVE')outBy[monthKey(t.date)]=(outBy[monthKey(t.date)]||0)+t.qty;});
-  const lbl=keys.map(k=>new Date(k+'-01').toLocaleString('en',{month:'short',year:'2-digit'}));
-  chart('chMonthly',{type:'bar',data:{labels:lbl,datasets:[
-    {label:'Received',data:keys.map(k=>inBy[k]||0),backgroundColor:'#576CBC'},
-    {label:'Issued',data:keys.map(k=>outBy[k]||0),backgroundColor:'#A5D7E8'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+  const nameOf=c=>{const it=D.items.find(x=>x.code===c);return it?it.name:c;};
 
-  const byCat={};
-  D.items.forEach(it=>{const b=BAL[it.code]?.balance??0; if(b>0)byCat[it.category]=(byCat[it.category]||0)+b;});
-  chart('chCat',{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),
-    backgroundColor:['#0B2447','#19376D','#576CBC','#A5D7E8','#7FA8D9','#3E5C94','#C3DDF0']}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+  const byItem={};
+  D.stockOut.forEach(t=>{if(t.status==='ACTIVE')byItem[t.code]=(byItem[t.code]||0)+t.qty;});
+  const topI=Object.entries(byItem).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  chart('chFast',{type:'bar',data:{labels:topI.map(x=>nameOf(x[0])),
+    datasets:[{label:'Units issued',data:topI.map(x=>x[1]),backgroundColor:'#576CBC'}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
 
   const byBr={};
   D.stockOut.forEach(t=>{if(t.status==='ACTIVE')byBr[t.branch]=(byBr[t.branch]||0)+t.qty;});
   const top=Object.entries(byBr).sort((a,b)=>b[1]-a[1]).slice(0,10);
   chart('chBranch',{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{label:'Units issued',data:top.map(x=>x[1]),backgroundColor:'#19376D'}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+
+  renderFeed();
+}
+
+function renderFeed(){
+  const feed=[
+    ...D.stockIn.map(t=>({doc:t.doc,date:t.date,row:t.row,code:t.code,name:t.name,qty:t.qty,status:t.status,
+      kind:t.doc.indexOf('ADJ')===0?'ADJ +':'IN',who:t.vendor})),
+    ...D.stockOut.map(t=>({doc:t.doc,date:t.date,row:t.row,code:t.code,name:t.name,qty:t.qty,status:t.status,
+      kind:t.doc.indexOf('ADJ')===0?'ADJ −':'OUT',who:t.branch}))
+  ].sort((a,b)=>(String(b.date)).localeCompare(String(a.date))||b.row-a.row).slice(0,10);
+  $('tFeed').tBodies[0].innerHTML=feed.map(t=>`<tr>
+    <td>${esc(t.doc)}</td><td>${esc(t.date)}</td>
+    <td><span class="pill ${t.status==='VOID'?'void':(t.kind==='OUT'||t.kind==='ADJ −')?'low':'ok'}">${t.kind}${t.status==='VOID'?' · VOID':''}</span></td>
+    <td>${esc(t.code)} — ${esc(t.name)}</td><td class="n">${fmt(t.qty)}</td><td>${esc(t.who)}</td></tr>`).join('')
+    ||'<tr><td colspan="6">No transactions yet — receipts and issues will appear here.</td></tr>';
 }
 
 function renderLow(){
