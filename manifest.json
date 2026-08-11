@@ -1,0 +1,16 @@
+{
+  "name": "Facility Inventory — BEC / Al Ansari Exchange",
+  "short_name": "Facility Inv",
+  "description": "Facility Department inventory: receipts, issues, live stock balance and reports.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B2447",
+  "theme_color": "#0B2447",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
