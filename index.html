@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Facility Inventory — BEC / AAE</title>
+<meta name="theme-color" content="#0B2447">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="config.js"></script>
 <script src="chart.umd.js"></script>
 <style>
@@ -30,7 +37,7 @@ header .t p{font-size:11.5px;color:var(--sky)}
 header .conn{margin-left:auto;font-size:11.5px;display:flex;align-items:center;gap:7px}
 .dot{width:9px;height:9px;border-radius:50%;background:#8896AB}
 .dot.on{background:#3DDC84}.dot.off{background:#FF6B6B}
-nav{background:var(--navy2);display:flex;padding:0 22px;gap:2px;overflow-x:auto}
+nav{background:var(--navy2);display:flex;padding:0 22px;gap:2px;overflow-x:auto;position:sticky;top:0;z-index:60;box-shadow:0 2px 6px rgba(11,36,71,.25)}
 nav button{background:none;border:none;color:#C7D6EC;padding:11px 16px;font-size:13px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
 nav button:hover{color:#fff}
 nav button.on{color:#fff;border-bottom-color:var(--sky)}
@@ -129,8 +136,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
   /* every table scrolls sideways instead of crushing columns */
   .scroll{overflow:auto;-webkit-overflow-scrolling:touch}
   .scroll table{min-width:640px}
-  table.lines{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table.lines thead,table.lines tbody{display:table;width:100%;min-width:520px}
+  .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tscroll table.lines{min-width:540px;width:100%}
   .tools{gap:8px}
   .tools>div{min-width:100%;flex:1}
   .tools .btn{width:100%}
@@ -222,10 +229,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div><label>Invoice no</label><input id="inInvoice" placeholder="Vendor invoice / DO no"></div>
       <div><label>Remarks</label><input id="inRemarks" placeholder="Optional"></div>
     </div>
-    <table class="lines" id="inLines">
+    <div class="tscroll"><table class="lines" id="inLines">
       <thead><tr><th style="width:44%">Item</th><th class="n">Quantity</th><th class="n">Unit cost (KWD)</th><th class="n">Line value</th><th></th></tr></thead>
       <tbody></tbody>
-    </table>
+    </table></div>
     <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
       <button class="btn ghost sm" onclick="addLine('in')">+ Add line</button>
       <span style="margin-left:auto;font-weight:700;color:var(--navy)" id="inTotal">Total: 0.000</span>
@@ -254,10 +261,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div><label>Requested by</label><input id="outReqBy" placeholder="Requester name"></div>
     </div>
     <div class="row"><div><label>Remarks</label><input id="outRemarks" placeholder="Optional"></div></div>
-    <table class="lines" id="outLines">
+    <div class="tscroll"><table class="lines" id="outLines">
       <thead><tr><th style="width:50%">Item</th><th class="n">Available</th><th class="n">Quantity</th><th></th></tr></thead>
       <tbody></tbody>
-    </table>
+    </table></div>
     <div style="margin-top:10px"><button class="btn ghost sm" onclick="addLine('out')">+ Add line</button></div>
     <div style="margin-top:14px;display:flex;gap:10px">
       <button class="btn" id="outSave" onclick="saveOut()">Save issue</button>
@@ -1119,6 +1126,7 @@ function exportBalanceCSV(){
 resetIn();resetOut();
 if(AUTH){ $('whoami').textContent=AUTH.user; applyRole(); loadData(); } else { showLogin(); }
 if(CFG.AUTO_REFRESH_SECONDS>0)setInterval(()=>{ if(AUTH) loadData(false); },CFG.AUTO_REFRESH_SECONDS*1000);
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
 </html>
