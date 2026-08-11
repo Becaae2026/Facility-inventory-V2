@@ -518,6 +518,17 @@ function printSection(id,title){
 
 /* --------------------------------- API ----------------------------------- */
 function apiUrl(){ return (CFG.WEB_APP_URL||'').trim(); }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// Google sometimes returns an HTML busy page instead of JSON — retry instead of failing
+async function fetchJSON(url,opts,retries=2){
+  for(let i=0;;i++){
+    let text;
+    try{ const r=await fetch(url,opts); text=await r.text(); }
+    catch(e){ if(i>=retries)throw new Error('Cannot reach the server. Check your connection.'); await sleep(1500); continue; }
+    try{ return JSON.parse(text); }
+    catch(_){ if(i>=retries)throw new Error('Google server is busy. Please try again in a moment.'); await sleep(1500); }
+  }
+}
 let AUTH=null;
 try{ AUTH=JSON.parse(sessionStorage.getItem('facAuth')||'null'); }catch(_){}
 function authFail(){ AUTH=null; sessionStorage.removeItem('facAuth'); showLogin(); }
@@ -525,20 +536,18 @@ function handleAuthErr(msg){ if(String(msg).indexOf('AUTH:')>-1){ authFail(); re
 
 async function apiGet(action){
   const q = AUTH ? '&u='+encodeURIComponent(AUTH.user)+'&t='+encodeURIComponent(AUTH.token) : '';
-  const r = await fetch(apiUrl()+'?action='+action+q, {method:'GET'});
-  const j = await r.json();
+  const j = await fetchJSON(apiUrl()+'?action='+action+q, {method:'GET'});
   if(!j.ok){ if(handleAuthErr(j.error)) throw new Error('Please sign in.'); throw new Error(j.error||'Server error'); }
   return j.data;
 }
 async function apiPost(action,payload){
   const body={action, payload};
   if(AUTH){ body.u=AUTH.user; body.t=AUTH.token; }
-  const r = await fetch(apiUrl(), {
+  const j = await fetchJSON(apiUrl(), {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},   // avoids CORS preflight with Apps Script
     body: JSON.stringify(body)
-  });
-  const j = await r.json();
+  }, 1);   // one retry for writes — the backend rejects duplicate logins/actions safely
   if(!j.ok){ if(handleAuthErr(j.error)) throw new Error('Please sign in.'); throw new Error(j.error||'Server error'); }
   return j.data;
 }
@@ -549,12 +558,12 @@ function hideLogin(){ $('loginOverlay').classList.remove('show'); }
 async function doLogin(){
   const username=$('loginUser').value.trim(), password=$('loginPass').value;
   if(!username||!password){ $('loginErr').textContent='Enter username and password.'; return; }
-  $('loginBtn').disabled=true; $('loginErr').textContent='';
+  $('loginBtn').disabled=true; $('loginErr').textContent='Signing in… first login can take up to 20 seconds while the server wakes up.';
   try{
-    const r = await fetch(apiUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'login',username,password})});
-    const j = await r.json();
+    const j = await fetchJSON(apiUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'login',username,password})}, 2);
     if(!j.ok) throw new Error(j.error||'Login failed');
+    $('loginErr').textContent='';
     AUTH={user:j.data.user,token:j.data.token,role:j.data.role||'user'};
     sessionStorage.setItem('facAuth',JSON.stringify(AUTH));
     $('whoami').textContent=AUTH.user; $('loginPass').value='';
