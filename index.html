@@ -104,6 +104,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .loginBox p{font-size:12px;color:var(--mut);text-align:center;margin-bottom:16px}
 .loginBox .fld{margin-bottom:12px}
 .loginErr{color:var(--bad);font-size:12px;min-height:16px;margin-bottom:8px;text-align:center}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
 #loading{position:fixed;inset:0;background:rgba(242,246,250,.75);display:none;align-items:center;justify-content:center;z-index:98;font-weight:600;color:var(--navy)}
 .note{font-size:12px;color:var(--mut);margin-top:8px}
 .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
@@ -530,8 +532,11 @@ async function fetchJSON(url,opts,retries=2){
   }
 }
 let AUTH=null;
-try{ AUTH=JSON.parse(sessionStorage.getItem('facAuth')||'null'); }catch(_){}
-function authFail(){ AUTH=null; sessionStorage.removeItem('facAuth'); showLogin(); }
+try{
+  const a=JSON.parse(localStorage.getItem('facAuth')||'null');
+  if(a&&a.exp>Date.now()) AUTH=a; else localStorage.removeItem('facAuth');
+}catch(_){}
+function authFail(){ AUTH=null; localStorage.removeItem('facAuth'); showLogin(); }
 function handleAuthErr(msg){ if(String(msg).indexOf('AUTH:')>-1){ authFail(); return true; } return false; }
 
 async function apiGet(action){
@@ -553,23 +558,31 @@ async function apiPost(action,payload){
 }
 
 /* -------------------------------- login ----------------------------------- */
-function showLogin(){ $('loginOverlay').classList.add('show'); setTimeout(()=>$('loginUser').focus(),50); }
+function showLogin(){
+  $('loginOverlay').classList.add('show');
+  setTimeout(()=>$('loginUser').focus(),50);
+  // wake the Google server while the user types, so Sign in itself is fast
+  if(apiUrl().indexOf('http')===0) fetch(apiUrl()+'?action=ping').catch(()=>{});
+}
 function hideLogin(){ $('loginOverlay').classList.remove('show'); }
 async function doLogin(){
   const username=$('loginUser').value.trim(), password=$('loginPass').value;
   if(!username||!password){ $('loginErr').textContent='Enter username and password.'; return; }
-  $('loginBtn').disabled=true; $('loginErr').textContent='Signing in… first login can take up to 20 seconds while the server wakes up.';
+  $('loginBtn').disabled=true;
+  $('loginBtn').innerHTML='<span class="spin"></span>Signing in…';
+  $('loginErr').style.color='#576CBC';
+  $('loginErr').textContent='First login of the day can take a little longer.';
   try{
     const j = await fetchJSON(apiUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({action:'login',username,password})}, 2);
     if(!j.ok) throw new Error(j.error||'Login failed');
     $('loginErr').textContent='';
-    AUTH={user:j.data.user,token:j.data.token,role:j.data.role||'user'};
-    sessionStorage.setItem('facAuth',JSON.stringify(AUTH));
+    AUTH={user:j.data.user,token:j.data.token,role:j.data.role||'user',exp:Date.now()+12*60*60*1000};
+    localStorage.setItem('facAuth',JSON.stringify(AUTH));
     $('whoami').textContent=AUTH.user; $('loginPass').value='';
     hideLogin(); applyRole(); loadData();
-  }catch(e){ $('loginErr').textContent=String(e.message).replace('Error: ',''); }
-  finally{ $('loginBtn').disabled=false; }
+  }catch(e){ $('loginErr').style.color=''; $('loginErr').textContent=String(e.message).replace('Error: ',''); }
+  finally{ $('loginBtn').disabled=false; $('loginBtn').innerHTML='Sign in'; }
 }
 function logout(){ authFail(); toast('Signed out.'); }
 
