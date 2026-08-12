@@ -4,7 +4,7 @@
  * Paste your Apps Script Web App URL between the quotes (ends with /exec).
  */
 window.APP_CONFIG = {
-  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwL-47PWqzyFqFZoae8UJ4wQgBM5fiRv2dYm-6btjS2NbyukQAvzEFJ4KXB5cABb38zBQ/exec",
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzVyhivpdNIX6eeUK40uNmAZ-9WfSp8HUP8eIuXsgMGc0rcaxKj0z8RKwMvU-ax_vGuvw/exec",
   USER_NAME: "Facility Dashboard",   // shown in the Audit Log
-  AUTO_REFRESH_SECONDS: 300          // 0 = off
+  AUTO_REFRESH_SECONDS: 120          // 0 = off
 };
